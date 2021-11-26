@@ -44,13 +44,14 @@ PS_INPUT VS_TEST(VS_INPUT input)
 	return output;
 }
 
-float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float3 shiness, float3 lightColor)
+float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
-	return float3(0, 1, 1);
+	float n_l = dot(N, L);
+	return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(n_l, 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
 }
 
 // specular term 안보이게 하기
-float3 	PhongLighting2(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float3 shiness, float3 lightColor)
+float3 	PhongLighting2(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
 	return float3(0, 1, 1);
 }

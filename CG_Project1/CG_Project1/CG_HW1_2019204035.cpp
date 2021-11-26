@@ -229,12 +229,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 	{
 		//if (wParam == VK_BACK) if (FAILED(Recompile())) printf("FAILED!!!!\n");
-		if (wParam == VK_CONTROL)
+		if (wParam == VK_CONTROL && Ctl_state==0)
 		{
 			Ctl_state = 1;
-			printf("%d\n", Ctl_state);
-		}
-		
+			mWorld_start = g_mWorld;
+		}	
 	}
 	break;
 	case WM_KEYUP:
@@ -268,60 +267,124 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		if (wParam & MK_LBUTTON)
 		{
-			// To Do
-			Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
-#pragma region HW part 1			
-			Vector3 vec_start_cam2np = pos_start_np_ws - pos_start_eye_ws;
-			vec_start_cam2np.Normalize();
-			Vector3 vec_cur_cam2np = pos_cur_np_ws - pos_start_eye_ws;
-			vec_cur_cam2np.Normalize();
-			Vector3 world_pos = g_mWorld.Translation();
-			float angle_rad = acosf(vec_start_cam2np.Dot(vec_cur_cam2np)) * 3.f;
-			Vector3 rot_axis = vec_start_cam2np.Cross(vec_cur_cam2np);	
-			mWorld_start._41 = 0; 
-			mWorld_start._42 = 0;
-			mWorld_start._43 = 0;
-
-			if (rot_axis.LengthSquared() > 0.000001)
+			if (Ctl_state == 1) // Lbutton mouse drag & CTL key
 			{
-				printf("%f\n", angle_rad);
-				rot_axis.Normalize();
-				Matrix matR = Matrix::CreateFromAxisAngle(-rot_axis, angle_rad);
-				Matrix matT = Matrix::CreateTranslation(world_pos);
-				g_mWorld = mWorld_start* matR * matT;
-			}
+				// To Do
+				Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
+#pragma region HW part 1			
+				Vector3 vec_start_cam2np = pos_start_np_ws - pos_start_eye_ws;
+				vec_start_cam2np.Normalize();
+				Vector3 vec_cur_cam2np = pos_cur_np_ws - pos_start_eye_ws;
+				vec_cur_cam2np.Normalize();
+				Vector3 world_pos = g_mWorld.Translation();
+				float angle_rad = acosf(vec_start_cam2np.Dot(vec_cur_cam2np)) * 3.f;
+				Vector3 rot_axis = vec_start_cam2np.Cross(vec_cur_cam2np);
+				mWorld_start._41 = 0;
+				mWorld_start._42 = 0;
+				mWorld_start._43 = 0;
+
+				if (rot_axis.LengthSquared() > 0.000001)
+				{
+					printf("%f\n", angle_rad);
+					rot_axis.Normalize();
+					Matrix matR = Matrix::CreateFromAxisAngle(-rot_axis, angle_rad);
+					Matrix matT = Matrix::CreateTranslation(world_pos);
+					g_mWorld = mWorld_start * matR * matT;
+				}
 #pragma endregion HW part 1
-			g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
+			}
+			else // Lbutton mouse drag
+			{
+				// To Do
+				Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
+#pragma region HW part 1
+				//printf("%f, %f, %f\n", pos_start_np_ws.x, pos_start_np_ws.y, pos_start_np_ws.z);
+				Vector3 vec_start_cam2np = pos_start_np_ws - pos_start_eye_ws;
+				vec_start_cam2np.Normalize();
+				Vector3 vec_cur_cam2np = pos_cur_np_ws - pos_start_eye_ws;
+				vec_cur_cam2np.Normalize();
+				float angle_rad = acosf(vec_start_cam2np.Dot(vec_cur_cam2np)) * 3.0f;
+				Vector3 rot_axis = vec_start_cam2np.Cross(vec_cur_cam2np);
+				if (rot_axis.LengthSquared() > 0.000001)
+				{
+					printf("%f\n", angle_rad);
+					rot_axis.Normalize();
+					Matrix matR = Matrix::CreateFromAxisAngle(rot_axis, angle_rad);
+
+					g_pos_eye = Vector3::Transform(pos_start_eye_ws, matR);
+					//g_pos_at = no change
+					g_vec_up = Vector3::TransformNormal(vec_start_up, matR);
+				}
+#pragma endregion HW part 1
+				g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
+			}
 		}
+			
 		else if (wParam & MK_RBUTTON)
 		{
-			// To Do
-			Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
-#pragma region HW part 2
-			float dist_at = (pos_start_at_ws - pos_start_eye_ws).Length();
-			// np : 0.01f
-			Vector3 vec_diff_np = pos_cur_np_ws - pos_start_np_ws;
-			float dist_diff_np = vec_diff_np.Length();
-			float dist_diff = dist_diff_np /0.01f * dist_at;
-			if (dist_diff_np > 0.000001)
+			if (Ctl_state == 1) // Rbutton mouse drag & CTL key
 			{
-				Vector3 vec_diff = vec_diff_np / dist_diff_np * dist_diff;
-				g_mWorld = mWorld_start * Matrix::CreateTranslation(vec_diff);		
-			}
+				// To Do
+				Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
+#pragma region HW part 2
+				float dist_at = (pos_start_at_ws - pos_start_eye_ws).Length();
+				// np : 0.01f
+				Vector3 vec_diff_np = pos_cur_np_ws - pos_start_np_ws;
+				float dist_diff_np = vec_diff_np.Length();
+				float dist_diff = dist_diff_np / 0.01f * dist_at;
+				if (dist_diff_np > 0.000001)
+				{
+					Vector3 vec_diff = vec_diff_np / dist_diff_np * dist_diff;
+					g_mWorld = mWorld_start * Matrix::CreateTranslation(vec_diff);
+				}
 #pragma endregion HW part 2
-			g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
-		}
+			}
+			else // Rbutton mouse drag
+			{
+				// To Do
+				Vector3 pos_cur_np_ws = ComputePosSS2WS(xPos, yPos, mView_start);
+#pragma region HW part 2
+				float dist_at = (pos_start_at_ws - pos_start_eye_ws).Length();
+				// np : 0.01f
+				Vector3 vec_diff_np = pos_cur_np_ws - pos_start_np_ws;
+				float dist_diff_np = vec_diff_np.Length();
+				float dist_diff = dist_diff_np / 0.01f * dist_at;
+				if (dist_diff_np > 0.000001)
+				{
+					Vector3 vec_diff = vec_diff_np / dist_diff_np * dist_diff;
+					g_pos_eye = pos_start_eye_ws - vec_diff;
+					g_pos_at = pos_start_at_ws - vec_diff;
+				}
+#pragma endregion HW part 2
+				g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
+			}
+		}	
 	}
 	break;
 	case WM_MOUSEWHEEL:
 	{
-		// /to Do
-		int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+		if (Ctl_state == 1) // mouse wheels & CTL key
+		{
+			int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
 #pragma region HW part 3
-		float move_delta = zDelta > 0 ? 1.05f : 0.95f;
-		g_mWorld = g_mWorld*Matrix::CreateScale(move_delta);
+			float move_delta = zDelta > 0 ? 1.05f : 0.95f;
+			g_mWorld = g_mWorld * Matrix::CreateScale(move_delta);
 #pragma endregion HW part 3
-		g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
+		}
+		else // mouse wheels
+		{
+			int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+#pragma region HW part 3
+			float move_delta = zDelta > 0 ? 0.5f : -0.5f;
+			Vector3 view_dir = (g_pos_at - g_pos_eye);
+			view_dir.Normalize();
+			g_pos_eye += move_delta * view_dir;
+			g_pos_at += move_delta * view_dir;
+#pragma endregion HW part 3
+			g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
+		}
+		// /to Do
+		
 	}
 	break;
 	case WM_PAINT:
