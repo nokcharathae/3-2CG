@@ -49,16 +49,16 @@ ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 ID3D11RasterizerState* g_pRSState = nullptr;
 ID3D11DepthStencilState* g_pDSState = nullptr;
 
-struct TransformCBuffer
+struct TransformCBuffer // 16byte 단위로 저장되어야 함
 {
 	Matrix mWorld;
 	Matrix mView;
 	Matrix mProjection;
 };
 
-struct LightCBuffer
+struct LightCBuffer // 16byte 단위로 저장되어야 함
 {
-	Vector3 posLightCS;
+	Vector3 posLightCS; // camera space position
 	int lightFlag;
 };
 
@@ -228,7 +228,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 	case WM_KEYDOWN:
 	{
-		//if (wParam == VK_BACK) if (FAILED(Recompile())) printf("FAILED!!!!\n");
+		if (wParam == VK_BACK) if (FAILED(Recompile())) printf("FAILED!!!!\n");
 		if (wParam == VK_CONTROL && Ctl_state==0)
 		{
 			Ctl_state = 1;
@@ -648,8 +648,8 @@ HRESULT InitDevice()
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // DXGI_FORMAT_R8G8B8A8_UNORM 가능 <- 각 채널 1byte
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12가능 <- 각 채널 1byte
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 0, 16
 	};
 	UINT numElements = ARRAYSIZE(layout);
 
@@ -835,8 +835,8 @@ void Render()
 	cb_Light.posLightCS = Vector3::Transform(Vector3(0, 8, 0),g_mView);
 	cb_Light.lightFlag = 777;
 	g_pImmediateContext->UpdateSubresource(g_pLightCBuffer, 0, nullptr, &cb_Light, 0, 0);
-	//g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능!
+	//g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!(최적화)
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
 
 	g_pImmediateContext->RSSetState(g_pRSState);
 	g_pImmediateContext->OMSetDepthStencilState(g_pDSState, 0);
