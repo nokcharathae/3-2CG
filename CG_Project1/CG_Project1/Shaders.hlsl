@@ -23,7 +23,7 @@ struct PS_INPUT
 {
 	float4 Pos : SV_POSITION;
 	float4 Color: COLOR0;
-	float3 PosCS:POSIION0;
+	float3 PosCS: POSIION0;
 	float3 Normal : NORMAL; 
 };
 
@@ -42,9 +42,25 @@ PS_INPUT VS_TEST(VS_INPUT input)
 	output.Normal = normalize(mul(input.Normal,mul(mView,mWorld))); // camera space로 변경 필요
 	// Normal vector는 object space지만 righting은 camera space가 효율적이기 때문이기에 위 코드로 작성
 	// mul(mView,mWorld) -> col major로 계산이므로 row major로 계산하기 위해서는 vector, matrix 순으로 작성
+	// inverse에 transepose 시키면 
 	// Normal vector transform 구현 : + 점수
 	return output;
 }
+
+/*
+VS_OUTPUT main(VS_INPUT input)
+{
+	VS_OUTPUT output;
+
+	output.Pos = mul(float4(input.Pos, 1), WorldViewProjection);
+	output.WPos = mul(float4(input.Pos, 1), World);
+	output.Color = input.Color;
+	output.Normal = normalize(mul(input.Normal, (float3x3) World));
+
+	return output;
+}
+*/
+
 
 float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
@@ -57,7 +73,7 @@ float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient,
 float3 	PhongLighting2(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
 	float n_l = dot(N, L);
-	if (dot(N, L) <= )R = (float3)0;
+	//if (dot(N, L) <= )R = (float3)0;
 	//return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(n_l, 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
 	return float3(0, 1, 1);
 }
@@ -75,10 +91,12 @@ float4 PS(PS_INPUT input) : SV_Target
 	float shine = 10.f;
 	// Light type (point) ....
 	// L : light vector
-	// N : Normal vector
-	// R : replection vector
+	// N : normal vector
+	// R : reflection vector
 	// V : view vector
 	float3 L,N,R,V; // compute to do
+
+	//N= normalize(input.Normal);
 
 	float3 colorOut= PhongLighting(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
 	return float4(colorOut, 1);

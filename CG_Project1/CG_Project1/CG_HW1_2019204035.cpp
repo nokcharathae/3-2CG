@@ -59,7 +59,7 @@ struct TransformCBuffer // 16byte 단위로 저장되어야 함
 struct LightCBuffer // 16byte 단위로 저장되어야 함
 {
 	Vector3 posLightCS; // camera space position
-	int lightFlag;
+	int lightFlag; // 4byte 추가해줌
 };
 
 Matrix g_mWorld, g_mView, g_mProjection;
@@ -628,6 +628,7 @@ HRESULT InitDevice()
 
 #pragma region Create Shader
 	// Compile the vertex shader
+	// 컴파일된 내용물도 하나의 리소스로 취급
 	ID3DBlob* pVSBlob = nullptr;
 	hr = CompileShaderFromFile(L"Shaders.hlsl", "VS_TEST", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
@@ -636,6 +637,7 @@ HRESULT InitDevice()
 		return hr;
 	}
 
+	// 컴파일된 vertex shader를 가지고 GPU memory에 shader resource로 만들고 이를 vertex shader에 매핑해야 함
 	// Create the vertex shader
 	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pVertexShader);
 	if (FAILED(hr))
@@ -824,6 +826,7 @@ void Render()
 	//Matrix matR = Matrix::CreateRotationY(DirectX::XM_PI / 10000.f);
 	//g_mWorld = matR * g_mWorld;
 
+	// constant buffer는 render에서 정의하는 것이 좋음
 	TransformCBuffer cb_Transform;
 	cb_Transform.mWorld = g_mWorld.Transpose();
 	cb_Transform.mView = g_mView.Transpose();
@@ -842,7 +845,7 @@ void Render()
 	g_pImmediateContext->OMSetDepthStencilState(g_pDSState, 0);
 
 	// Just clear the backbuffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, DirectX::Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, DirectX::Colors::MistyRose);
 
 	// Clear the depth buffer to 1.0 (max depth) 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
