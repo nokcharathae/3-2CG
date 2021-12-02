@@ -5,7 +5,7 @@ cbuffer TransformBuffer : register(b0)
 	matrix mProjection;
 }
 
-cbuffer LightBuffer : register(b1) // buffer 1
+cbuffer LightBuffer : register(b0) // buffer 1
 {
 	float3 posLightCS;
 	float dummy;
@@ -14,14 +14,14 @@ cbuffer LightBuffer : register(b1) // buffer 1
 
 }
 
-cbuffer MaterialBuffer : register(b2)
+cbuffer MaterialBuffer : register(b1)
 {
 	float3 mtcAmbient;
 	float shine;
 	float3 mtxDiffuse;
 	float dummy3;
 	float3 mtcSpec;
-	float dummy4;
+	int light_controler;
 }
 
 struct VS_INPUT
@@ -76,7 +76,6 @@ PS_INPUT VS_TEST(VS_INPUT input)
 float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
 	return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(dot(N, L), 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
-	//return float3(0, 1, 1);
 }
 
 // specular term 안보이게 하기
@@ -84,7 +83,6 @@ float3 	PhongLighting2(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient
 {
 	if (dot(N, L) <= 0) R = (float3)0;
 	return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(dot(N, L), 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
-	//return float3(0, 1, 1);
 }
 
 //--------------------------------------------------------------------------------------
@@ -99,10 +97,18 @@ float4 PS(PS_INPUT input) : SV_Target
 {
 	float3 L, N, R, V; // compute to do
 	L = normalize(posLightCS - input.PosCS);
-	N = normalize(input.Nor);
+	N = input.Nor;
 	R = normalize(2*(dot(L, N) * N - L));
 	V = normalize(-1*input.PosCS);
-	float3 colorOut = PhongLighting(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
+	
+	if (light_controler == 1) {
+		L = normalize(posLightCS - input.PosCS);
+	}
+	else if (light_controler == 2) {
+		L = normalize(float3(0,-1,0)--input.PosCS);
+	}
+
+	float3 colorOut = PhongLighting2(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
 	
 	return float4(colorOut, 1);
 	//float3 unit_nor = (input.Nor);// interpolation 되면 normal이 unit vetor로 들어오지 않을 수 있기 때문에

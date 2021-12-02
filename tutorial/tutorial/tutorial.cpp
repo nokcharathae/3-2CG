@@ -25,6 +25,7 @@ HINSTANCE g_hInst;                                // current instance
 WCHAR g_szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR g_szWindowClass[MAX_LOADSTRING];            // the main window class name
 int g_Ctl_state = 0;
+int g_light_con = 1;
 
 // for D3D setting
 HWND g_hWnd;
@@ -45,13 +46,12 @@ ID3D11Buffer* g_pTransformCBuffer = nullptr;
 ID3D11Buffer* g_pLightCBuffer = nullptr;
 ID3D11Buffer* g_pMaterialCBuffer = nullptr;
 
-ID3D11RasterizerState* g_pRSState = nullptr; // backface culling
-ID3D11DepthStencilState* g_pDSState = nullptr; // ocullution culling
-// 화면에 그려주는 것과 직접적인 연관이 없고 그래픽스 처리를 위해서 사용되는 buffer이므로 별도로 buffer 생성
-
 ID3D11Texture2D* g_pDepthStencil = nullptr;
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 
+ID3D11RasterizerState* g_pRSState = nullptr; // backface culling
+ID3D11DepthStencilState* g_pDSState = nullptr; // ocullution culling
+// 화면에 그려주는 것과 직접적인 연관이 없고 그래픽스 처리를 위해서 사용되는 buffer이므로 별도로 buffer 생성
 
 struct TransformCBuffer // 16byte 단위로 저장되어야 함
 {
@@ -75,14 +75,14 @@ struct MaterialCBuffer
     Vector3 mtxDiffuse;
     float dummy3;
     Vector3 mtcSpec;
-    float dummy4;
+    int light_controler;
 };
 
 Matrix g_mWorld, g_mView, g_mProjection;
 Vector3 g_pos_eye, g_pos_at, g_vec_up;
 
 // Forward declarations of functions included in this code module:
-HRESULT InitWindow(HINSTANCE hInstance, int nCmdshow);
+HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
@@ -120,7 +120,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // 렌더링을 호출하는 방식에는 두가지가 있음 
     // Always calling at every frame VS. Only calling when user events occur
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TUTORIAL));
+    // HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TUTORIAL));
     // Only calling when user events occur
     // Main message loop:
     /*
@@ -271,12 +271,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             g_Ctl_state = 1;
             mWorld_start = g_mWorld;
         }
+        if (wParam == 0x31)
+        {
+            g_light_con = 1;
+        }
+        if (wParam == 0x32)
+        {
+            g_light_con = 2;
+        }
     }
     break;
     case WM_KEYUP:
     {
         g_Ctl_state = 0;
-        printf("%d\n", g_Ctl_state);
     }
     break;
     case WM_LBUTTONDOWN:
@@ -545,6 +552,7 @@ HRESULT Recompile()
     return hr;
 }
 
+#include <iostream>
 //--------------------------------------------------------------------------------------
 // Create Direct3D device and swap chain
 //--------------------------------------------------------------------------------------
@@ -749,11 +757,15 @@ HRESULT InitDevice()
         // Index 1 : semantics Index
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         // 32bit = 4byte = 12byte 앞에서 차지한 byte만큼 
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12가능 <- 각 채널 1byte
+        //{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12가능 <- 각 채널 1byte
         // { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 각 채널이 1byte씩 사용, 즉 4byte만 사용
         // UNORM normalize라고 쓴 것이 8byte로 저장이 되는데 shader에서는 float처럼 사용 가능
         // 실제 그 float의 precision은 8byte로 돌아간다.
-        { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 0, 16
+        //{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 0, 16
+        // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
 
@@ -997,15 +1009,16 @@ void Render()
     cb_Light.lightColor = Vector3(1.f , 1.f, 1.f);
     g_pImmediateContext->UpdateSubresource(g_pLightCBuffer, 0, nullptr, &cb_Light, 0, 0);
     //g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!(최적화)
-    g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
+    g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
 
     MaterialCBuffer cb_Material;
     cb_Material.mtcAmbient = Vector3(0.1f , 0.1f, 0.1f );
+    cb_Material.shine = 10.f;
     cb_Material.mtxDiffuse = Vector3(0.7f, 0.7f, 0.f );
     cb_Material.mtcSpec = Vector3(0.2f , 0.f, 0.2f );
-    cb_Material.shine = 10.f;
+    cb_Material.light_controler = g_light_con;
     g_pImmediateContext->UpdateSubresource(g_pMaterialCBuffer, 0, nullptr, &cb_Material, 0, 0);
-    g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pMaterialCBuffer);
+    g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pMaterialCBuffer);
 
     g_pImmediateContext->RSSetState(g_pRSState); 
     g_pImmediateContext->OMSetDepthStencilState(g_pDSState, 0);
