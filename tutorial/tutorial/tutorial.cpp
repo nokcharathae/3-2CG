@@ -26,6 +26,7 @@ WCHAR g_szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR g_szWindowClass[MAX_LOADSTRING];            // the main window class name
 int g_Ctl_state = 0;
 int g_light_con = 1;
+int g_shading_com = 1;
 
 // for D3D setting
 HWND g_hWnd;
@@ -45,6 +46,8 @@ ID3D11Buffer* g_pIndexBuffer = nullptr;
 ID3D11Buffer* g_pTransformCBuffer = nullptr;
 ID3D11Buffer* g_pLightCBuffer = nullptr;
 ID3D11Buffer* g_pMaterialCBuffer = nullptr;
+ID3D11Buffer* g_pGoLightCBuffer = nullptr;
+ID3D11Buffer* g_pGoMaterialCBuffer = nullptr;
 
 ID3D11Texture2D* g_pDepthStencil = nullptr;
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
@@ -63,7 +66,7 @@ struct TransformCBuffer // 16byte 단위로 저장되어야 함
 struct LightCBuffer // 16byte 단위로 저장되어야 함
 {
     Vector3 posLightCS; // camera space position
-    float dummy;
+    float go_con;
     Vector3 lightColor;
     float dummy2;
     Vector3 OriginCS;
@@ -71,6 +74,26 @@ struct LightCBuffer // 16byte 단위로 저장되어야 함
 };
 
 struct MaterialCBuffer
+{
+    Vector3 mtcAmbient;
+    float shine;
+    Vector3 mtxDiffuse;
+    float dummy3;
+    Vector3 mtcSpec;
+    int light_controler;
+};
+
+struct GoLightCBuffer
+{
+    Vector3 posLightCS; // camera space position
+    float shad_con;
+    Vector3 lightColor;
+    float dummy2;
+    Vector3 OriginCS;
+    float dummy3;
+};
+
+struct GoMaterialBuffer
 {
     Vector3 mtcAmbient;
     float shine;
@@ -281,6 +304,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             g_light_con = 2;
         }
+        if (wParam == 0x50) // p
+        {
+            g_shading_com = 1;
+        }
+        if (wParam == 0x47) // G
+        {
+            g_shading_com = 2;
+        }
+
     }
     break;
     case WM_KEYUP:
@@ -760,13 +792,12 @@ HRESULT InitDevice()
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         // 32bit = 4byte = 12byte 앞에서 차지한 byte만큼 
         //{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12가능 <- 각 채널 1byte
-        // { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 각 채널이 1byte씩 사용, 즉 4byte만 사용
         // UNORM normalize라고 쓴 것이 8byte로 저장이 되는데 shader에서는 float처럼 사용 가능
         // 실제 그 float의 precision은 8byte로 돌아간다.
         //{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 0, 16
         // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
@@ -946,6 +977,24 @@ HRESULT InitDevice()
     hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pMaterialCBuffer);
     if (FAILED(hr))
         return hr;
+
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(GoLightCBuffer);
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bd.CPUAccessFlags = 0;
+    hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pGoLightCBuffer);
+    if (FAILED(hr))
+        return hr;
+
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(GoMaterialBuffer);
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bd.CPUAccessFlags = 0;
+    hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pGoMaterialCBuffer);
+    if (FAILED(hr))
+        return hr;
+    
+
 #pragma endregion Constant Buffer
 
 #pragma region Transform Setting
@@ -1010,9 +1059,10 @@ void Render()
     cb_Light.posLightCS = Vector3::Transform(Vector3(0, 8, 0), g_mView); // world -> camera
     cb_Light.lightColor = Vector3(1.f , 1.f, 1.f);
     cb_Light.OriginCS = Vector3::Transform(Vector3(0, 0, 0), g_mView);
+    cb_Light.go_con = g_shading_com;
     g_pImmediateContext->UpdateSubresource(g_pLightCBuffer, 0, nullptr, &cb_Light, 0, 0);
     //g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!(최적화)
-    g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
+    g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
 
     MaterialCBuffer cb_Material;
     cb_Material.mtcAmbient = Vector3(0.1f , 0.1f, 0.1f );
@@ -1021,7 +1071,25 @@ void Render()
     cb_Material.mtcSpec = Vector3(0.2f , 0.f, 0.2f );
     cb_Material.light_controler = g_light_con;
     g_pImmediateContext->UpdateSubresource(g_pMaterialCBuffer, 0, nullptr, &cb_Material, 0, 0);
-    g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pMaterialCBuffer);
+    g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pMaterialCBuffer);
+
+    GoLightCBuffer cb_GoLight;
+    cb_GoLight.posLightCS = Vector3::Transform(Vector3(0, 8, 0), g_mView); // world -> camera
+    cb_GoLight.lightColor = Vector3(1.f, 1.f, 1.f);
+    cb_GoLight.OriginCS = Vector3::Transform(Vector3(0, 0, 0), g_mView);
+    cb_GoLight.shad_con = g_shading_com;
+    g_pImmediateContext->UpdateSubresource(g_pGoLightCBuffer, 0, nullptr, &cb_GoLight, 0, 0);
+    g_pImmediateContext->VSSetConstantBuffers(3, 1, &g_pGoLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!(최적화)
+
+    GoMaterialBuffer cb_GoMaterial;
+    cb_GoMaterial.mtcAmbient = Vector3(0.1f, 0.1f, 0.1f);
+    cb_GoMaterial.shine = 10.f;
+    cb_GoMaterial.mtxDiffuse = Vector3(0.7f, 0.7f, 0.f);
+    cb_GoMaterial.mtcSpec = Vector3(0.2f, 0.f, 0.2f);
+    cb_GoMaterial.light_controler = g_light_con;
+    g_pImmediateContext->UpdateSubresource(g_pGoMaterialCBuffer, 0, nullptr, &cb_GoMaterial, 0, 0);
+    g_pImmediateContext->VSSetConstantBuffers(4, 1, &g_pGoMaterialCBuffer);
+
 
     g_pImmediateContext->RSSetState(g_pRSState); 
     g_pImmediateContext->OMSetDepthStencilState(g_pDSState, 0);
@@ -1055,6 +1123,8 @@ void CleanupDevice()
     // 이는 꼭 진행하는 습관 필요!
     if (g_pImmediateContext) g_pImmediateContext->ClearState();
 
+    if(g_pGoLightCBuffer)g_pGoLightCBuffer-> Release();
+    if (g_pGoMaterialCBuffer)g_pGoMaterialCBuffer->Release();
     if (g_pMaterialCBuffer)g_pMaterialCBuffer->Release();
     if (g_pLightCBuffer) g_pLightCBuffer->Release();
     if (g_pTransformCBuffer) g_pTransformCBuffer->Release();
