@@ -11,6 +11,8 @@ cbuffer LightBuffer : register(b0) // buffer 1
 	float dummy;
 	float3 lightColor;
 	float dummy2;
+	float3 OriginCS;
+	float dummy4;
 
 }
 
@@ -65,6 +67,8 @@ PS_INPUT VS_TEST(VS_INPUT input)
 	output.Pos = mul(output.Pos, mProjection);
 	output.Color = input.Color;
 	output.Nor = normalize(mul(input.Nor, mul(mView, mWorld))); // camera space로 변경 필요
+	//output.Nor= mView.Tranpose()* input.Nor
+
 	// Normal vector는 object space지만 righting은 camera space가 효율적이기 때문이기에 위 코드로 작성
 	// row major에서 저장된 데이터가 들어올 때는 matrix를 곱하는 수식에서는 vector, matrix 순으로 작성
 	// 단, mul(mView, mWorld) matrix transform 되는 순서는 <-
@@ -75,14 +79,20 @@ PS_INPUT VS_TEST(VS_INPUT input)
 
 float3 	PhongLighting(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
-	return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(dot(N, L), 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
+	float3 ambient = mtcAmbient * lightColor;
+	float3 diffuse = mtxDiffuse * lightColor * max(dot(N, L), 0);
+	float3 specular = mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
+	return ambient + diffuse + specular;
 }
 
 // specular term 안보이게 하기
 float3 	PhongLighting2(float3 L, float3 N, float3 R, float3 V, float3 mtcAmbient, float3 mtxDiffuse, float3 mtcSpec, float shiness, float3 lightColor)
 {
 	if (dot(N, L) <= 0) R = (float3)0;
-	return mtcAmbient * lightColor + mtxDiffuse * lightColor * max(dot(N, L), 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
+	float3 ambient = mtcAmbient * lightColor;
+	float3 diffuse = mtxDiffuse * lightColor * max(dot(N, L), 0);
+	float3 specular = mtcSpec * lightColor * pow(max(dot(R, V), 0), shiness);
+	return ambient + diffuse + specular;
 }
 
 //--------------------------------------------------------------------------------------
@@ -99,17 +109,17 @@ float4 PS(PS_INPUT input) : SV_Target
 	L = normalize(posLightCS - input.PosCS);
 	N = input.Nor;
 	R = normalize(2*(dot(L, N) * N - L));
-	V = normalize(-1*input.PosCS);
+	V = normalize(-1*input.PosCS.xyz);
 	
 	if (light_controler == 1) {
 		L = normalize(posLightCS - input.PosCS);
 	}
 	else if (light_controler == 2) {
-		L = normalize(float3(0,-1,0)--input.PosCS);
+	
+		L = normalize(posLightCS- OriginCS);
 	}
 
 	float3 colorOut = PhongLighting2(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
-	
 	return float4(colorOut, 1);
 	//float3 unit_nor = (input.Nor);// interpolation 되면 normal이 unit vetor로 들어오지 않을 수 있기 때문에
 	//return float4((unit_nor+(float3)1.f)/2.f, 1.0f);    // 0~1의 값을 값기 위해 /2.f

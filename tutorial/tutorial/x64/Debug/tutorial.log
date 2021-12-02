@@ -1,6 +1,6 @@
 ﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
-C:\Users\CEY\Desktop\Git\3-2CG\tutorial\tutorial\Shaders.hlsl(67,25-58): warning X3206: 'mul': implicit truncation of vector type
-C:\Users\CEY\Desktop\Git\3-2CG\tutorial\tutorial\Shaders.hlsl(67,2-59): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\Git\3-2CG\tutorial\tutorial\Shaders.hlsl(69,25-58): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\Git\3-2CG\tutorial\tutorial\Shaders.hlsl(69,2-59): warning X3206: implicit truncation of vector type
   
   compilation object save succeeded; see C:\Users\CEY\Desktop\Git\3-2CG\tutorial\x64\Debug\Shaders.cso
   tutorial.vcxproj -> C:\Users\CEY\Desktop\Git\3-2CG\tutorial\x64\Debug\tutorial.exe

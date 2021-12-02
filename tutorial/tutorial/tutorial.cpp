@@ -66,6 +66,8 @@ struct LightCBuffer // 16byte 단위로 저장되어야 함
     float dummy;
     Vector3 lightColor;
     float dummy2;
+    Vector3 OriginCS;
+    float dummy3;
 };
 
 struct MaterialCBuffer
@@ -764,7 +766,7 @@ HRESULT InitDevice()
         //{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }, // 0, 16
         // { "NORMAL", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
@@ -1007,6 +1009,7 @@ void Render()
     LightCBuffer cb_Light;
     cb_Light.posLightCS = Vector3::Transform(Vector3(0, 8, 0), g_mView); // world -> camera
     cb_Light.lightColor = Vector3(1.f , 1.f, 1.f);
+    cb_Light.OriginCS = Vector3::Transform(Vector3(0, 0, 0), g_mView);
     g_pImmediateContext->UpdateSubresource(g_pLightCBuffer, 0, nullptr, &cb_Light, 0, 0);
     //g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pLightCBuffer); // slot 1 , gouraud shading 사용시에는 사용해야함!(최적화)
     g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pLightCBuffer); // pong shading은 pixel buffer만 이용가능! -> pixel shader에서 읽어올 수 있어야 함
