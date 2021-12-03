@@ -1,0 +1,20 @@
+﻿  HW4.cpp
+C:\Users\CEY\Desktop\nockcharathae\3-2CG\HW1\HW1\HW4.cpp(71,54): warning C4244: '=': conversion from '_Tp' to '_Tp', possible loss of data
+          with
+          [
+              _Tp=float
+          ]
+          and
+          [
+              _Tp=uchar
+          ]
+C:\Users\CEY\Desktop\nockcharathae\3-2CG\HW1\HW1\HW4.cpp(75,50): warning C4244: '=': conversion from '_Tp' to '_Tp', possible loss of data
+          with
+          [
+              _Tp=float
+          ]
+          and
+          [
+              _Tp=uchar
+          ]
+  HW1.vcxproj -> C:\Users\CEY\Desktop\nockcharathae\3-2CG\HW1\x64\Debug\HW1.exe
