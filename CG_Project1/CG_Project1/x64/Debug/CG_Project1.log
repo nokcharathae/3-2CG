@@ -1,7 +1,10 @@
 ﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
-C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\CG_Project1\Shaders.hlsl(42,28-62): warning X3206: 'mul': implicit truncation of vector type
-C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\CG_Project1\Shaders.hlsl(42,2-63): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(66,28-65): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(66,5-66): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(79,28-65): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(79,5-66): warning X3206: implicit truncation of vector type
   
-  compilation object save succeeded; see C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\x64\Debug\Shaders.cso
-  CG_HW1_2019204035.cpp
-  CG_Project1.vcxproj -> C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe
+  compilation object save succeeded; see C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\x64\Debug\Shaders_6_start.cso
+  practice_6_start.cpp
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(919,40): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  CG_Project1.vcxproj -> C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe

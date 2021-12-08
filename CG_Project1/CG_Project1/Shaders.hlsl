@@ -1,3 +1,5 @@
+#define X_PI 3.141592
+
 cbuffer TransforBuffer : register(b0) // buffer 0
 {
 	matrix mWorld;
@@ -98,7 +100,7 @@ float4 PS(PS_INPUT input) : SV_Target
 
 	//N= normalize(input.Normal);
 
-	float3 colorOut= PhongLighting(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
+	float3 colorOut = PhongLighting(L, N, R, V, mtcAmbient, mtxDiffuse, mtcSpec, shine, lightColor);
 	return float4(colorOut, 1);
 
 	//float3 posCS = input.PosCS;
@@ -108,4 +110,33 @@ float4 PS(PS_INPUT input) : SV_Target
 	//return float4(input.Color.xyz, 1.0f); // vertex의 color를 가시화한 것
 }
 
- // camera space가 자꾸 바뀌기 때문에 point light 는 apllication level에 들어와야 함
+// camera space가 자꾸 바뀌기 때문에 point light 는 apllication level에 들어와야 함
+
+   // float3 colorout=float3(input.Tex.xy,0) : resister(t1);
+   // Sampleler 
+
+
+//{
+	// orientation을 바꾸는 tranform 
+	// Matrix matR = Matrix::CreateLookAt(Vector3(0,0,0),Vector3(0,-1,0),Vector3(0,0,1));
+
+	// u, v 계산하고 그 u, v로부터 매팡하는 코드
+	// colorout= EnvTexuter.Sample(EnvSamplerCpp,input.Tex.xy);
+	// Reflection vector
+	// vR = 2*dot(N,V)*N-V;
+	// vR을 구의 object Space로 transform 시켜야함
+	// 
+	// Matrix mView2EnvOS;
+	// 
+	// vR=mul(vR,g_mView2EnvOS);
+	// vR=normalize(vR);
+	// flaot phi=asin(vR.z);
+	// float cosPhi=cos(phi);
+	// float theta=acos(max(min(vR.x/cos(phi),0.999f),-0.999f)); 0.00001을 피하려고, 0이나 1값이 나오면 안됨
+	// float u=envR.y>=0?theta/(2*x_PI):(2*X_PI=theta)/(2*X_PI);
+	// float v=envR.(X_PI/2-phi)/X_PI;
+
+	// colorout= EnvTexture.Sample(EnvSamplerCPP, float2(u,v));
+	// R = 2*dot(N,vR)*N-vR;
+	// return float4(saturate(color1+color2),1);
+//}
