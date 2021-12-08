@@ -20,6 +20,8 @@ cbuffer LightBuffer : register(b2)
     int g_lightFlag;
 }
 
+// t : texture, shader에서도 사용
+Buffer<float3> NormalBuffer : register(t0);
 
 struct VS_INPUT1
 {
@@ -54,6 +56,20 @@ struct PS_INPUT2
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
+PS_INPUT1 VS_P(float4 Pos : POSITION0)
+{
+    PS_INPUT1 output = (PS_INPUT1)0;
+    output.Pos = mul(Pos, g_mWorld);
+    output.Pos = mul(output.Pos, g_mView);
+    output.PosCS = output.Pos.xyz / output.Pos.w;
+
+    output.Pos = mul(output.Pos, g_mProjection);
+    output.Color = (float4)0;
+    output.Nor = (float4)0;
+
+    return output;
+}
+
 PS_INPUT1 VS_PCN(VS_INPUT1 input)
 {
     PS_INPUT1 output = (PS_INPUT1)0;
@@ -64,6 +80,9 @@ PS_INPUT1 VS_PCN(VS_INPUT1 input)
     output.Pos = mul(output.Pos, g_mProjection);
     output.Color = input.Color;
     output.Nor = normalize(mul(input.Nor, mul(g_mView, g_mWorld)));
+
+    // 0~15값이 들어와야 함
+    //input.primID
     return output;
 }
 
@@ -114,7 +133,7 @@ float3 ConvertInt2Float3(int iColor) {
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-float4 PS1(PS_INPUT1 input) : SV_Target
+float4 PS1(PS_INPUT1 input, uint primID : SV_PrimitiveID) : SV_Target
 {
     // Light Color
     float3 lightColor = ConvertInt2Float3(g_lightColor);// float3(1.f, 1.f, 1.f);
@@ -130,7 +149,14 @@ float4 PS1(PS_INPUT1 input) : SV_Target
         else
             L = g_dirLightCS;
         V = normalize(-input.PosCS);
-        N = normalize(input.Nor);
+        
+        // vertex의 attribute로 가진 normal 값을 resterizer에서 interporation된 값으로 사용
+        // N = normalize(input.Nor);
+
+        // primID = 0, 1 -> 0
+        // primID = 1, 2 -> 1
+        N = normalize(mul(NormalBuffer[primID ], mul(g_mView, g_mWorld)));
+
         R = 2 * dot(N, L) * N - L;
     }
 
@@ -138,6 +164,9 @@ float4 PS1(PS_INPUT1 input) : SV_Target
         mtcAmbient, mtcDiffuse, mtcSpec, shine,
         lightColor);
 
+    // if (primID < 4 && primID >= 2)
+    //    return float4(1, 1, 1, 1);
+     
     return float4(colorOut, 1);
 
     //float3 posCS = input.PosCS;
