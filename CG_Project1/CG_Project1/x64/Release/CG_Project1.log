@@ -1,0 +1,12 @@
+﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(85,5-26): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(99,28-65): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(99,5-66): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(115,28-65): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(115,5-66): warning X3206: implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(175,23-72): warning X3206: 'mul': implicit truncation of vector type
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(175,9-73): warning X3206: implicit truncation of vector type
+  C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\Shaders_6_start.hlsl(37,14-27): Unrecognized RHS value in assignment: 'MIN_MAG_LINEAR'
+  
+  compilation failed; no code produced
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(1759,5): error MSB6006: "fxc.exe" exited with code 1.

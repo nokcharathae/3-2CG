@@ -4,6 +4,7 @@
 #include "framework.h"
 #include "CG_Project1.h"
 #include "stl_reader.h"
+#include "stb_image.h"
 
 #include <windowsx.h>
 #include <stdio.h>
@@ -40,22 +41,32 @@ ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
 ID3D11VertexShader* g_pVertexShaderP = nullptr;
 ID3D11VertexShader* g_pVertexShaderPCN = nullptr;
 ID3D11VertexShader* g_pVertexShaderPNT = nullptr;
+
 ID3D11PixelShader* g_pPixelShader1 = nullptr;
 ID3D11PixelShader* g_pPixelShader2 = nullptr;
+ID3D11PixelShader* g_pPixelShader3 = nullptr;
+ID3D11PixelShader* g_pPixelShader4 = nullptr;
+
 ID3D11InputLayout* g_pIALayoutPCN = nullptr;
 ID3D11InputLayout* g_pIALayoutPNT = nullptr;
 ID3D11InputLayout* g_pIALayoutP = nullptr;
+
 ID3D11ShaderResourceView* g_pSRV_cube = nullptr;
 ID3D11ShaderResourceView* g_pSRV_stl = nullptr;
+
 ID3D11Buffer* g_pVertexBuffer_cube = nullptr;
 ID3D11Buffer* g_pNormalBuffer_cube = nullptr;
+ID3D11Buffer* g_pIndexBuffer_cube = nullptr;
 ID3D11Buffer* g_pVertexBuffer_stl = nullptr;
 ID3D11Buffer* g_pNormalBuffer_stl = nullptr;
 ID3D11Buffer* g_pIndexBuffer_stl = nullptr;
 ID3D11Buffer* g_pVertexBuffer_sphere = nullptr;
-ID3D11Buffer* g_pIndexBuffer_cube = nullptr;
 ID3D11Buffer* g_pIndexBuffer_sphere = nullptr;
 ID3D11Buffer* g_pCB_TransformWorld = nullptr;
+
+ID3D11SamplerState* g_samplerTex2D = nullptr;
+ID3D11Texture2D* g_texEnvMap = nullptr;
+ID3D11ShaderResourceView* g_tSRVEnvMap = nullptr;
 
 ID3D11Texture2D* g_pDepthStencil = nullptr;
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
@@ -272,6 +283,8 @@ struct CB_Lights
 
 	Vector3 dirLight; 
 	int lightFlag;
+
+	Matrix mView2EnvOS;
 };
 
 struct CubeVertex
@@ -678,11 +691,16 @@ HRESULT Recompile(bool generateIALayout)
 	if (pVSBlobPNT) pVSBlobPNT->Release();
 	if (pVSBlobP) pVSBlobP->Release();
 	
-	ID3DBlob *pPSBlob1 = nullptr, *pPSBlob2 = nullptr;
+	ID3DBlob* pPSBlob1 = nullptr, * pPSBlob2 = nullptr, * pPSBlob3 = nullptr, * pPSBlob4 = nullptr;
 	hr |= CreateShader("PS1", "ps_4_0", &pPSBlob1, (ID3D11DeviceChild**)&g_pPixelShader1);
 	hr |= CreateShader("PS2", "ps_4_0", &pPSBlob2, (ID3D11DeviceChild**)&g_pPixelShader2);
+	hr |= CreateShader("PS3", "ps_4_0", &pPSBlob3, (ID3D11DeviceChild**)&g_pPixelShader3);
+	hr |= CreateShader("PS4", "ps_4_0", &pPSBlob4, (ID3D11DeviceChild**)&g_pPixelShader4);
+	
 	if (pPSBlob1) pPSBlob1->Release();
 	if (pPSBlob2) pPSBlob2->Release();
+	if (pPSBlob3) pPSBlob3->Release();
+	if (pPSBlob4) pPSBlob4->Release();
 
 	return hr;
 }
@@ -899,15 +917,11 @@ HRESULT InitDevice()
 		// +y, -z, -x, +x, +z, -y 순으로 그려짐
 		// 면단위로 normall vector 생성
 		Vector3 cubeFaceNormals[] = {
-			Vector3(0.f,1.f,0.f), Vector3(0.f,1.f,0.f),
-			Vector3(0.f,0.f,-1.f),Vector3(0.f,0.f,-1.f),
-			Vector3(-1.f,0.f,0.f),Vector3(-1.f,0.f,0.f),
-			Vector3(1.f,0.f,0.f), Vector3(1.f,0.f,0.f),
-			Vector3(0.f,0.f,1.f), Vector3(0.f,0.f,1.f),
-			Vector3(0.f,-1.f,0.f), Vector3(0.f,-1.f,0.f),
+		  Vector3(0.f,1.f,0.f),Vector3(0.f,1.f,0.f), Vector3(0.f,0.f,-1.f),Vector3(0.f,0.f,-1.f), Vector3(-1.f,0.f,0.f),Vector3(-1.f,0.f,0.f),
+		  Vector3(1.f,0.f,0.f),Vector3(1.f,0.f,0.f), Vector3(0.f,0.f,1.f),Vector3(0.f,0.f,1.f), Vector3(0.f,-1.f,0.f),Vector3(0.f,-1.f,0.f),
 		};
 
-		bd.ByteWidth = sizeof(Vector3) * ARRAYSIZE(cubeFaceNormals);
+		bd.ByteWidth = sizeof(Vector3) * 12;
 		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		InitData.pSysMem = cubeFaceNormals;
 		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pNormalBuffer_cube);
@@ -919,9 +933,9 @@ HRESULT InitDevice()
 		D3D11_SHADER_RESOURCE_VIEW_DESC dcSrv = {};
 		dcSrv.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
 		// view가 가리키는 resource 지목
-		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX; //UNION 방식 뭐 여러개를 다를수 있음
 		dcSrv.BufferEx.FirstElement = 0;
-		dcSrv.BufferEx.NumElements = ARRAYSIZE(cubeFaceNormals);
+		dcSrv.BufferEx.NumElements = 12;
 		// view도 array로 만들 수 있음
 		hr = g_pd3dDevice->CreateShaderResourceView(g_pNormalBuffer_cube, &dcSrv, &g_pSRV_cube);
 		if (FAILED(hr))
@@ -951,17 +965,17 @@ HRESULT InitDevice()
 		const unsigned int* raw_tris = mesh.raw_tris();
 		
 		// STL용 vertex shader를 만들어야 함
-		D3D11_BUFFER_DESC bd = {}; 
-		bd.Usage = D3D11_USAGE_IMMUTABLE; 
+		D3D11_BUFFER_DESC bd = {};
+		bd.Usage = D3D11_USAGE_IMMUTABLE;
 		bd.ByteWidth = sizeof(Vector3) * mesh.num_vrts();
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 
 		D3D11_SUBRESOURCE_DATA InitData = {};
-		InitData.pSysMem = raw_coords;
-		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pVertexBuffer_stl);
-		if (FAILED(hr))
-			return hr;
+        InitData.pSysMem = raw_coords;
+        hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pVertexBuffer_stl);
+        if (FAILED(hr))
+            return hr;
 
 		indeices_stl = mesh.num_tris() * 3;
 		bd.Usage = D3D11_USAGE_DEFAULT;
@@ -971,9 +985,9 @@ HRESULT InitDevice()
 		InitData.pSysMem = raw_tris;
 		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pIndexBuffer_stl);
 		if (FAILED(hr))
-			return hr;   
+			return hr;
 
-		bd.ByteWidth = sizeof(Vector3) * mesh.num_tris() ;
+		bd.ByteWidth = sizeof(Vector3) * mesh.num_tris();
 		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		InitData.pSysMem = raw_normals;
 		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pNormalBuffer_stl);
@@ -992,8 +1006,6 @@ HRESULT InitDevice()
 		hr = g_pd3dDevice->CreateShaderResourceView(g_pNormalBuffer_stl, &dcSrv, &g_pSRV_stl);
 		if (FAILED(hr))
 			return hr;
-
-
 	}
 #pragma endregion 
 
@@ -1069,7 +1081,60 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
+#pragma region Env Mapping
+	// image 읽어오기
+	int w, h, n;
+	unsigned char* img = stbi_load("envi.jpg", &w, &h, &n, 0);
+	unsigned char* img_rgba = new unsigned char[w * h * 4];
+	for (int y = 0; y < h; y++)
+		for (int x = 0; x < w; x++) {
+			img_rgba[4 * (w * y + x) + 0] = img[3 * (w * y + x) + 0];
+			img_rgba[4 * (w * y + x) + 1] = img[3 * (w * y + x) + 1];
+			img_rgba[4 * (w * y + x) + 2] = img[3 * (w * y + x) + 2];
+			img_rgba[4 * (w * y + x) + 3] = (unsigned char)255;
+		}
 
+	D3D11_TEXTURE2D_DESC dcTex2D = {};
+	// ZeroMemory(&dcTex2D, sizeof(D3D11_TEXTURE2D_DESC)); // C-style
+	// memset(&dcTex2D, sizeof(D3D11_TEXTURE2D_DESC), 0); // C-style
+	dcTex2D.Width = w;
+	dcTex2D.Height = h;
+	dcTex2D.Format = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+	dcTex2D.ArraySize = 1;
+	dcTex2D.MipLevels = 1;
+	dcTex2D.SampleDesc.Count=1; // super sampling을 하니? 하지만 우리는 쓰지 않음, 매 sample마다 1의 값을 저장 그대로 두면 될듯?
+	dcTex2D.SampleDesc.Quality=0;
+	dcTex2D.Usage=D3D11_USAGE_IMMUTABLE; // Dynamic은 constant에서 많이 씀
+	// constant buffer는 매 시간마다 계속 frame됨.
+	// Usage 시험에 나올 듯
+	dcTex2D.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+	dcTex2D.CPUAccessFlags=0; // IMMUTABLE이기 때문에 CPU Access가 안됨
+	dcTex2D.MiscFlags=0; // Mipmap을 허용할 지?
+
+	D3D11_SUBRESOURCE_DATA InitTex2DData;
+	InitTex2DData.pSysMem = img_rgba;
+	InitTex2DData.SysMemPitch = w * 4; // y의 stride를 정의
+	InitTex2DData.SysMemSlicePitch = 0; // 3차원일 때
+	hr = g_pd3dDevice->CreateTexture2D(&dcTex2D, &InitTex2DData, &g_texEnvMap);
+	delete[] img_rgba;
+	if (FAILED(hr)) {
+		return hr;
+	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC dcTexSRV = {};
+	dcTexSRV.Format = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+	dcTexSRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D; 
+	dcTexSRV.Texture2D.MipLevels = 1;
+	dcTexSRV.Texture2D.MostDetailedMip = 0;
+	hr = g_pd3dDevice->CreateShaderResourceView(g_texEnvMap, &dcTexSRV, &g_tSRVEnvMap);
+	if (FAILED(hr)) {
+		return hr;
+	}
+	 
+#pragma endregion Env Mapping
+
+	// view를 scene단위에 넣을지, object 단위에 넣을지
+	// 환경 맵이라 
 
 #pragma region Transform Setting
 	g_pos_light = Vector3(0, 8, 0);
@@ -1083,14 +1148,14 @@ HRESULT InitDevice()
 	g_vec_up = Vector3(0.0f, 1.0f, 0.0f);
 	g_mView = Matrix::CreateLookAt(g_pos_eye, g_pos_at, g_vec_up);
 
-	g_mProjection = Matrix::CreatePerspectiveFieldOfView(DirectX::XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+	g_mProjection = Matrix::CreatePerspectiveFieldOfView(DirectX::XM_PIDIV2, width / (FLOAT)height, 0.1f, 1000.0f);
 #pragma endregion
 
 #pragma region States
 	D3D11_RASTERIZER_DESC descRaster;
 	ZeroMemory(&descRaster, sizeof(D3D11_RASTERIZER_DESC));
 	descRaster.FillMode = D3D11_FILL_SOLID;
-	descRaster.CullMode = D3D11_CULL_BACK;
+	descRaster.CullMode = D3D11_CULL_NONE;
 	descRaster.FrontCounterClockwise = true;
 	descRaster.DepthBias = 0;
 	descRaster.DepthBiasClamp = 0;
@@ -1115,22 +1180,43 @@ HRESULT InitDevice()
 	hr = g_pd3dDevice->CreateDepthStencilState(&descDepthStencil, &g_pDSState);
 #pragma endregion
 
-	// object에 들어가는 정보 
-	g_sceneObjs["STL"] = MyObject(g_pVertexBuffer_stl, g_pIndexBuffer_stl, g_pSRV_stl, g_pIALayoutP, g_pVertexShaderP, g_pPixelShader1,
-		g_pRSState, g_pDSState, sizeof(Vector3), sizeof(UINT), indeices_stl,
-		Matrix::CreateScale(1.f/12.f) * Matrix::CreateTranslation(-10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.f, 0.7f), Color(0.2f, 0, 0.2f), 10.f);
+	D3D11_SAMPLER_DESC dcSample = {};
+	dcSample.Filter = D3D11_FILTER::D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	dcSample.AddressU = D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+	dcSample.AddressV= D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+	dcSample.AddressW= D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+	*(Vector4*)&dcSample.BorderColor = Vector4();
+	dcSample.MipLODBias = 0;
+	dcSample.MaxAnisotropy = 16;
+	dcSample.MinLOD = 0;
+	dcSample.MaxLOD = D3D11_FLOAT32_MAX;
+	dcSample.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	hr = g_pd3dDevice->CreateSamplerState(&dcSample, &g_samplerTex2D);
+	if (FAILED(hr))
+		return hr;
 
-	g_sceneObjs["CUBE"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube,g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader1,
+	// object에 들어가는 정보 
+	g_sceneObjs["STL"] = MyObject(g_pVertexBuffer_stl, g_pIndexBuffer_stl, g_pSRV_stl, g_pIALayoutP, g_pVertexShaderP, g_pPixelShader4,
+		g_pRSState, g_pDSState, sizeof(Vector3), sizeof(UINT), indeices_stl,
+		Matrix::CreateScale(1.f / 12.f) * Matrix::CreateTranslation(-10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.7f, 0.7f), Color(0.2f, 0.2f, 0.2f), 10.f);
+
+	g_sceneObjs["CUBE"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader4,
 		g_pRSState, g_pDSState, sizeof(CubeVertex), sizeof(WORD), indices_cube,
 		g_mWorld_cube, Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.7f, 0), Color(0.2f, 0, 0.2f), 10.f);
 
-	g_sceneObjs["CUBE_2"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, nullptr, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader1,
-		g_pRSState, g_pDSState, sizeof(CubeVertex), sizeof(WORD), indices_cube,
-		Matrix::CreateScale(5.f)*Matrix::CreateTranslation(10.f,0.f,0.f), Color(0.1f, 0.1f, 0.1f), Color(0.f, 0.7f, 0.7f), Color(0.2f, 0, 0.2f), 10.f);
+	g_sceneObjs["CUBE2"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader4,
+	   g_pRSState, g_pDSState, sizeof(CubeVertex), sizeof(WORD), indices_cube,
+		Matrix::CreateScale(5.f) * Matrix::CreateTranslation(10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.f, 0.7f, 0.7f), Color(0.2f, 0, 0.2f), 10.f);
 
-	g_sceneObjs["SPHERE"] = MyObject(g_pVertexBuffer_sphere, g_pIndexBuffer_sphere, nullptr, g_pIALayoutPNT, g_pVertexShaderPNT, g_pPixelShader2,
+	g_sceneObjs["SPHERE"] = MyObject(g_pVertexBuffer_sphere, g_pIndexBuffer_sphere, NULL, g_pIALayoutPNT, g_pVertexShaderPNT, g_pPixelShader2,
 		g_pRSState, g_pDSState, sizeof(SphereVertex), sizeof(UINT), indices_sphere,
 		g_mWorld_sphere, Color(1.f, 1.f, 1.f), Color(), Color(), 1.f);
+
+	Matrix matR = Matrix::CreateLookAt(Vector3(0, 0, 0), Vector3(0, -1, 0), Vector3(0, 0, 1));
+	
+	g_sceneObjs["SPHERE_ENV"] = MyObject(g_pVertexBuffer_sphere, g_pIndexBuffer_sphere, NULL, g_pIALayoutPNT, g_pVertexShaderPNT, g_pPixelShader3,
+		g_pRSState, g_pDSState, sizeof(SphereVertex), sizeof(UINT), indices_sphere,
+		matR * Matrix::CreateScale(500.f), Color(1.f, 1.f, 1.f), Color(), Color(), 1.f);
 
 	return hr;
 }
@@ -1140,6 +1226,7 @@ HRESULT InitDevice()
 //--------------------------------------------------------------------------------------
 void Render()
 {
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_samplerTex2D);
 #pragma region Common Scene (World)
 	// scene에 공통으로 적용될 constant buffer
 	CB_TransformScene cbTransformScene;
@@ -1155,11 +1242,17 @@ void Render()
 	cbLight.dirLight.Normalize(); 
 	cbLight.lightColor = Color(1, 1, 1, 1).RGBA();
 	cbLight.lightFlag = 0;
+
+	Matrix mView2World = g_mView.Invert();
+	MyObject& envSphere = g_sceneObjs["SPHERE_ENV"];
+	Matrix mView2EnvSphere = envSphere.mModel.Invert();
+	cbLight.mView2EnvOS = (mView2World * mView2EnvSphere).Transpose();
+
 	g_pImmediateContext->UpdateSubresource(g_pCB_Lights, 0, nullptr, &cbLight, 0, 0);
 	// g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pCB_Lights); // setting할 필요 없음
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pCB_Lights);
 
-	// g_pImmediateContext->PSSetShaderResource(1,1,g_tSRVEnvMap);
+	g_pImmediateContext->PSSetShaderResources(1,1,&g_tSRVEnvMap);
 
 	// Just clear the backbuffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, DirectX::Colors::MistyRose);
@@ -1259,10 +1352,15 @@ void CleanupDevice()
 	if (g_pRSState) g_pRSState->Release();
 	if (g_pDSState) g_pDSState->Release();
 
+	if (g_texEnvMap)g_texEnvMap->Release();
+	if (g_tSRVEnvMap)g_tSRVEnvMap->Release();
+
 	if (g_pRenderTargetView) g_pRenderTargetView->Release();
 	if (g_pSwapChain) g_pSwapChain->Release();
 	if (g_pImmediateContext) g_pImmediateContext->Release();
 	if (g_pd3dDevice) g_pd3dDevice->Release();
+
+	if (g_samplerTex2D)g_samplerTex2D->Release();
 }
 
 //{

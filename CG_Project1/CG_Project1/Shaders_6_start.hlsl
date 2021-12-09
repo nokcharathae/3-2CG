@@ -1,3 +1,5 @@
+# define X_PI 3.14159265358979323846
+
 cbuffer TransformScene : register(b0)
 {
     matrix g_mView;
@@ -18,10 +20,28 @@ cbuffer LightBuffer : register(b2)
     int g_lightColor;
     float3 g_dirLightCS;
     int g_lightFlag;
+    matrix g_mView2EnvOS;
 }
 
 // t : texture, shader에서도 사용
 Buffer<float3> NormalBuffer : register(t0);
+
+// float3인 이유 : NORM은 GPU에서 쓰는 정밀도가 8bit인 float으로 사용 
+Texture2D<float4> EnvTexture : register(t1);
+
+// sampler = s
+SamplerState EnvSamplerCpp:register(s0);
+// image에서 픽셀 값을 가지고 올 때 
+// mip map linea로 sample 하는 것이 나음
+// boundary 외를 sampling할 때는 다른 property 적용 필요
+// sampler를 불러온 것이 아닌 생성한 것
+SamplerState EnvSampler : register(s1)
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Border;
+    AddressV = Border;
+    BorderColor = float4(0, 0, 0, 0);
+};
 
 struct VS_INPUT1
 {
@@ -120,7 +140,7 @@ float3 PhongLighting2(float3 L, float3 N, float3 R, float3 V,
     //float3 mtL = mtColor * lColor;
     // in CS, V is (0, 0, -1)
     // dot(R, V) equals to -R.z
-    return mtcAmbient * lightColor + mtcDiffuse * lightColor * max(dotNL, 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shininess);
+     return mtcAmbient * lightColor + mtcDiffuse * lightColor * max(dotNL, 0) + mtcSpec * lightColor * pow(max(dot(R, V), 0), shininess);
 }
 
 float3 ConvertInt2Float3(int iColor) {
@@ -155,7 +175,7 @@ float4 PS1(PS_INPUT1 input, uint primID : SV_PrimitiveID) : SV_Target
 
         // primID = 0, 1 -> 0
         // primID = 1, 2 -> 1
-        N = normalize(mul(NormalBuffer[primID ], mul(g_mView, g_mWorld)));
+        N = normalize(mul(NormalBuffer[primID], mul(g_mView, g_mWorld)));
 
         R = 2 * dot(N, L) * N - L;
     }
@@ -181,3 +201,87 @@ float4 PS2(PS_INPUT2 input) : SV_Target
     
     return float4(colorOut, 1);
 }
+
+float4 PS3(PS_INPUT2 input) : SV_Target
+{
+     float3 colorOut = EnvTexture.Sample(EnvSamplerCpp, input.Tex.xy);
+
+     return float4(colorOut, 1);
+}
+
+float4 PS4(PS_INPUT1 input, uint primID : SV_PrimitiveID) : SV_Target
+{
+
+    float3 lightColor = ConvertInt2Float3(g_lightColor);// float3(1.f, 1.f, 1.f);
+    // Material Colors : ambient, diffuse, specular, shininess
+    float3 mtcAmbient = ConvertInt2Float3(g_mtAmbient), mtcDiffuse = ConvertInt2Float3(g_mtDiffuse), mtcSpec = ConvertInt2Float3(g_mtSpec);
+    float shine = g_shininess;
+    // Light type (point)... 
+    float3 L, N, R, V; // compute to do
+
+    {
+        if (g_lightFlag == 0)
+            L = normalize(g_posLightCS - input.PosCS);
+        else
+            L = g_dirLightCS;
+        V = normalize(-input.PosCS);
+        //N = normalize(input.Nor);
+        N = normalize(mul(NormalBuffer[primID], mul(g_mView, g_mWorld))); // 면단위로 같은 노멀 백터
+        R = 2 * dot(N, L) * N - L;
+    }
+
+    float3 color1 = PhongLighting2(L, N, R, V, mtcAmbient, mtcDiffuse, mtcSpec, shine, lightColor);
+
+    float3 vR;
+    {
+        vR = 2 * dot(N, V) * N - V;
+    }
+
+    float3 envR = mul(vR, g_mView2EnvOS);
+    envR = normalize(envR);
+
+    float phi = asin(envR.z); // 90~-90
+    float cosphi = cos(phi);
+    float theta = acos(max(min(envR.x / cos(phi),0.999f),-0.999f));
+    float u = envR.y >= 0 ? theta / (2 * X_PI) : (2 * X_PI - theta) / (2 * X_PI);
+    float v = (X_PI / 2 - phi) / X_PI;
+
+    float3 texColor = EnvTexture.Sample(EnvSamplerCpp, float2(u, v));
+
+    R = normalize(2 * dot(N, vR) * N - vR);
+    float3 color2 = PhongLighting2(vR,N,R,V,mtcAmbient, mtcDiffuse, mtcSpec, shine,texColor);
+    
+    return float4(saturate(color1 + color2), 1);
+}
+
+// camera space가 자꾸 바뀌기 때문에 point light 는 application level에 들어와야 함
+
+   // float3 colorout=float3(input.Tex.xy,0) : resister(t1);
+   // Sampleler 
+
+
+//{
+    // orientation을 바꾸는 tranform 
+    // Matrix matR = Matrix::CreateLookAt(Vector3(0,0,0),Vector3(0,-1,0),Vector3(0,0,1));
+
+    // u, v 계산하고 그 u, v로부터 매팡하는 코드
+    // colorout= EnvTexuter.Sample(EnvSamplerCpp,input.Tex.xy);
+    // Reflection vector
+    // vR = 2*dot(N,V)*N-V;
+    // vR을 구의 object Space로 transform 시켜야함
+    // 
+    // Matrix mView2EnvOS;
+    // 
+    // vR=mul(vR,g_mView2EnvOS);
+    // vR=normalize(vR);
+    // flaot phi=asin(vR.z);
+    // float cosPhi=cos(phi);
+    // float theta=acos(max(min(vR.x/cos(phi),0.999f),-0.999f)); 0.00001을 피하려고, 0이나 1값이 나오면 안됨
+    // float u=envR.y>=0?theta/(2*x_PI):(2*X_PI=theta)/(2*X_PI);
+    // float v=envR.(X_PI/2-phi)/X_PI;
+
+     // colorout= EnvTexture.Sample(EnvSamplerCPP, float2(u,v));
+    // R = 2*dot(N,vR)*N-vR;
+    // return float4(saturate(color1+color2),1);
+
+    // buffer는 sampler 적용이 안됨

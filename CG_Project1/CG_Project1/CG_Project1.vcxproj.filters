@@ -33,6 +33,9 @@
     <ClInclude Include="stl_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="CG_Project1.rc">
@@ -48,23 +51,23 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CG_HW1_2019204035.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="practice_6_start.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..\..\..\..\Desktop\practice_2 (1)\SimpleMath.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders.hlsl">
+    <ClCompile Include="practice_6_start.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test6.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders_6_start.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders_6_start.hlsl">
+    <FxCompile Include="test6_start.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
   </ItemGroup>
