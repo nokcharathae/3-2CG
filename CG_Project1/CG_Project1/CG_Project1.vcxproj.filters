@@ -59,15 +59,12 @@
     <ClCompile Include="practice_6_start.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test6.cpp">
+    <ClCompile Include="..\..\..\..\　\대학\3학년 2학기\컴퓨터그래픽스\HW2_2019204035_최은영\tutorial.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders_6_start.hlsl">
-      <Filter>Source Files</Filter>
-    </FxCompile>
-    <FxCompile Include="test6_start.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
   </ItemGroup>

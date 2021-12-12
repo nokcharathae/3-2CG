@@ -1,7 +1,8 @@
 ﻿  practice_6_start.cpp
-C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(970,51): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(980,37): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(990,51): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(1004,47): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
-C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(1052,40): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-  CG_Project1.vcxproj -> C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(469,3): warning C4060: switch statement contains no 'case' or 'default' labels
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(972,51): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(982,36): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(992,51): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(1005,47): warning C4267: '=': conversion from 'size_t' to 'UINT', possible loss of data
+C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\CG_Project1\practice_6_start.cpp(1053,40): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  CG_Project1.vcxproj -> C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe

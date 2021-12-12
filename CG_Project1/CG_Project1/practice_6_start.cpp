@@ -38,9 +38,9 @@ ID3D11DeviceContext* g_pImmediateContext = nullptr;
 IDXGISwapChain* g_pSwapChain = nullptr;
 ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
 
-ID3D11VertexShader* g_pVertexShaderP = nullptr;
 ID3D11VertexShader* g_pVertexShaderPCN = nullptr;
 ID3D11VertexShader* g_pVertexShaderPNT = nullptr;
+ID3D11VertexShader* g_pVertexShaderP = nullptr;
 
 ID3D11PixelShader* g_pPixelShader1 = nullptr;
 ID3D11PixelShader* g_pPixelShader2 = nullptr;
@@ -63,6 +63,7 @@ ID3D11Buffer* g_pIndexBuffer_stl = nullptr;
 ID3D11Buffer* g_pVertexBuffer_sphere = nullptr;
 ID3D11Buffer* g_pIndexBuffer_sphere = nullptr;
 ID3D11Buffer* g_pCB_TransformWorld = nullptr;
+ID3D11Buffer* g_pCB_Lights = nullptr;
 
 ID3D11SamplerState* g_samplerTex2D = nullptr;
 ID3D11Texture2D* g_texEnvMap = nullptr;
@@ -74,9 +75,9 @@ ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 ID3D11RasterizerState* g_pRSState = nullptr;
 ID3D11DepthStencilState* g_pDSState = nullptr;
 
-ID3D11Buffer* g_pCB_Lights = nullptr;
 Vector3 g_pos_light;
 Vector3 g_pos_eye, g_pos_at, g_vec_up;
+
 struct MyObject {
 public:
 	// resources //
@@ -124,6 +125,7 @@ public:
 		shininess = shininess_;
 		pConstBuffer = nullptr;
 
+		// create constant buffer resource
 		D3D11_BUFFER_DESC bd = {};
 		bd.Usage = D3D11_USAGE_DEFAULT;
 		bd.ByteWidth = sizeof(Matrix) + 4 * 4; // MUST BE times of 16
@@ -158,6 +160,7 @@ private:
 std::map<std::string, MyObject> g_sceneObjs; // dictionary와 비슷 <key, value>
 
 // http://www.songho.ca/opengl/gl_sphere.html
+// 구 그리는 함수
 void GenerateSphere(const float radius, const int sectorCount, const int stackCount,
 	std::vector<float>& positions, std::vector<float>& normals, std::vector<float>& texCoords)
 {
@@ -462,7 +465,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		switch (wParam)
 		{
-		case VK_BACK: if (FAILED(Recompile(false))) printf("FAILED!!!!\n"); break;
+		// case VK_BACK: if (FAILED(Recompile(false))) printf("FAILED!!!!\n"); break;
 		}
 	}
 	break;
@@ -678,6 +681,7 @@ HRESULT Recompile(bool generateIALayout)
 		hr |= g_pd3dDevice->CreateInputLayout(layout_PNT, numElements, pVSBlobPNT->GetBufferPointer(), pVSBlobPNT->GetBufferSize(), &g_pIALayoutPNT);
 	}
 
+	// 왜 if문에 안 넣을까요?
 	D3D11_INPUT_ELEMENT_DESC layout_P[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -685,7 +689,6 @@ HRESULT Recompile(bool generateIALayout)
 	UINT numElements = ARRAYSIZE(layout_P);
 	// Create the input layout
 	hr |= g_pd3dDevice->CreateInputLayout(layout_P, numElements, pVSBlobP->GetBufferPointer(), pVSBlobP->GetBufferSize(), &g_pIALayoutP);
-
 
 	if (pVSBlobPCN) pVSBlobPCN->Release();
 	if (pVSBlobPNT) pVSBlobPNT->Release();
@@ -768,7 +771,7 @@ HRESULT InitDevice()
 	sd.BufferDesc.RefreshRate.Denominator = 1;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.OutputWindow = g_hWnd;
-#ifdef MSAA
+#ifdef MSAA // Multi Sampling Anti-Aliasing. SSAA가 지나치게 무식한 성능과 메모리를 요구해서 만들어진 개량법
 	sd.SampleDesc.Count = 2;
 #else
 	sd.SampleDesc.Count = 1;
@@ -847,9 +850,8 @@ HRESULT InitDevice()
 	Recompile(true);
 #pragma endregion Create Shader
 
-
-	int indices_cube = 0, indeices_stl = 0, indices_sphere = 0;
 #pragma region Create a cube
+	int indices_cube = 0, indices_stl = 0, indices_sphere = 0;
 	{
 		CubeVertex vertices[] =
 		{
@@ -862,7 +864,7 @@ HRESULT InitDevice()
 			{ Vector3(0.5f, -0.5f, 0.5f), Vector4(1.0f, 1.0f, 1.0f, 1.0f), Vector3() },
 			{ Vector3(-0.5f, -0.5f, 0.5f), Vector4(0.0f, 0.0f, 0.0f, 1.0f), Vector3() },
 		};
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < ARRAYSIZE(vertices); i++)
 		{
 			CubeVertex& vtx = vertices[i];
 			vtx.Nor = vtx.Pos;
@@ -915,7 +917,7 @@ HRESULT InitDevice()
 			return hr;
 
 		// +y, -z, -x, +x, +z, -y 순으로 그려짐
-		// 면단위로 normall vector 생성
+		// 면단위로 normal vector 생성
 		Vector3 cubeFaceNormals[] = {
 		  Vector3(0.f,1.f,0.f),Vector3(0.f,1.f,0.f), Vector3(0.f,0.f,-1.f),Vector3(0.f,0.f,-1.f), Vector3(-1.f,0.f,0.f),Vector3(-1.f,0.f,0.f),
 		  Vector3(1.f,0.f,0.f),Vector3(1.f,0.f,0.f), Vector3(0.f,0.f,1.f),Vector3(0.f,0.f,1.f), Vector3(0.f,-1.f,0.f),Vector3(0.f,-1.f,0.f),
@@ -933,7 +935,7 @@ HRESULT InitDevice()
 		D3D11_SHADER_RESOURCE_VIEW_DESC dcSrv = {};
 		dcSrv.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
 		// view가 가리키는 resource 지목
-		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX; //UNION 방식 뭐 여러개를 다를수 있음
+		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX; //UNION 방식 여러개를 다를수 있음
 		dcSrv.BufferEx.FirstElement = 0;
 		dcSrv.BufferEx.NumElements = 12;
 		// view도 array로 만들 수 있음
@@ -941,15 +943,14 @@ HRESULT InitDevice()
 		if (FAILED(hr))
 			return hr;
 	}
-
-
 #pragma endregion
 
 #pragma region Load a STL
 	{
 		stl_reader::StlMesh <float, unsigned int> mesh("Armadillo2.stl");
 		const float* raw_coords = mesh.raw_coords();
-		// bounding box
+		/*
+		* bounding box
 		// const Vector3* raw3_coords = (const Vector3*)raw_coords; // 일반적
 		// Vector3 minPos(FLT_MAX), maxPos(-FLT_MAX);
 		// for (int i = 0; i < mesh.num_vrts(); i++) {
@@ -961,10 +962,11 @@ HRESULT InitDevice()
 		// 	maxPos.y = min(maxPos.y, raw3_coords[i].y);
 		// 	maxPos.z = min(maxPos.z, raw3_coords[i].z);
 		// }
+		*/ 
   		const float* raw_normals = mesh.raw_normals();
 		const unsigned int* raw_tris = mesh.raw_tris();
 		
-		// STL용 vertex shader를 만들어야 함
+		// STL용 vertex shader
 		D3D11_BUFFER_DESC bd = {};
 		bd.Usage = D3D11_USAGE_IMMUTABLE;
 		bd.ByteWidth = sizeof(Vector3) * mesh.num_vrts();
@@ -977,9 +979,9 @@ HRESULT InitDevice()
         if (FAILED(hr))
             return hr;
 
-		indeices_stl = mesh.num_tris() * 3;
+		indices_stl = mesh.num_tris() * 3;
 		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.ByteWidth = sizeof(UINT) * indeices_stl;       // 36 vertices needed for 12 triangles in a triangle list
+		bd.ByteWidth = sizeof(UINT) * indices_stl;       // 36 vertices needed for 12 triangles in a triangle list
 		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bd.CPUAccessFlags = 0;
 		InitData.pSysMem = raw_tris;
@@ -987,7 +989,7 @@ HRESULT InitDevice()
 		if (FAILED(hr))
 			return hr;
 
-		bd.ByteWidth = sizeof(Vector3) * mesh.num_tris();
+		bd.ByteWidth = sizeof(Vector3) * mesh.num_tris(); // Vector3 주의
 		bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		InitData.pSysMem = raw_normals;
 		hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pNormalBuffer_stl);
@@ -995,11 +997,10 @@ HRESULT InitDevice()
 			return hr;
 
 		// Shader resource는 해당 shader에 할당하기 위해서 view라는 interface를 사용
-		// 이것이 syntex
 		D3D11_SHADER_RESOURCE_VIEW_DESC dcSrv = {};
 		dcSrv.Format = DXGI_FORMAT::DXGI_FORMAT_R32G32B32_FLOAT;
 		// view가 가리키는 resource 지목
-		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		dcSrv.ViewDimension = D3D11_SRV_DIMENSION_BUFFER; // 왜 이걸로 했을까?
 		dcSrv.BufferEx.FirstElement = 0;
 		dcSrv.BufferEx.NumElements = mesh.num_tris();
 		// view도 array로 만들 수 있음
@@ -1197,7 +1198,7 @@ HRESULT InitDevice()
 
 	// object에 들어가는 정보 
 	g_sceneObjs["STL"] = MyObject(g_pVertexBuffer_stl, g_pIndexBuffer_stl, g_pSRV_stl, g_pIALayoutP, g_pVertexShaderP, g_pPixelShader4,
-		g_pRSState, g_pDSState, sizeof(Vector3), sizeof(UINT), indeices_stl,
+		g_pRSState, g_pDSState, sizeof(Vector3), sizeof(UINT), indices_stl,
 		Matrix::CreateScale(1.f / 12.f) * Matrix::CreateTranslation(-10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.7f, 0.7f), Color(0.2f, 0.2f, 0.2f), 10.f);
 
 	g_sceneObjs["CUBE"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader4,
@@ -1328,27 +1329,36 @@ void CleanupDevice()
 
 	if (g_pCB_TransformWorld) g_pCB_TransformWorld->Release();
 	if (g_pCB_Lights) g_pCB_Lights->Release();
-	if (g_pIndexBuffer_cube) g_pIndexBuffer_cube->Release();
-	if (g_pIndexBuffer_sphere) g_pIndexBuffer_sphere->Release();
-	if (g_pIndexBuffer_stl) g_pIndexBuffer_stl ->Release();
-	if (g_pSRV_stl)g_pSRV_stl->Release();
-	if (g_pVertexBuffer_cube) g_pVertexBuffer_stl->Release();
-	if (g_pNormalBuffer_cube) g_pNormalBuffer_stl->Release();
+
 	if (g_pSRV_cube)g_pSRV_cube->Release();
 	if (g_pVertexBuffer_cube) g_pVertexBuffer_cube->Release();
 	if (g_pNormalBuffer_cube) g_pNormalBuffer_cube->Release();
+	if (g_pIndexBuffer_cube) g_pIndexBuffer_cube->Release();
+
+	if (g_pSRV_stl)g_pSRV_stl->Release();
+	if (g_pVertexBuffer_stl) g_pVertexBuffer_stl->Release();
+	if (g_pNormalBuffer_stl) g_pNormalBuffer_stl->Release();
+	if (g_pIndexBuffer_stl) g_pIndexBuffer_stl->Release();
+
+	if (g_pIndexBuffer_sphere) g_pIndexBuffer_sphere->Release();
 	if (g_pVertexBuffer_sphere) g_pVertexBuffer_sphere->Release();
+
 	if (g_pIALayoutPCN) g_pIALayoutPCN->Release();
 	if (g_pIALayoutPNT) g_pIALayoutPNT->Release();
 	if (g_pIALayoutP) g_pIALayoutP->Release();
+
 	if (g_pVertexShaderPCN) g_pVertexShaderPCN->Release();
 	if (g_pVertexShaderPNT) g_pVertexShaderPNT->Release();
 	if (g_pVertexShaderP) g_pVertexShaderP->Release();
+
 	if (g_pPixelShader1) g_pPixelShader1->Release();
 	if (g_pPixelShader2) g_pPixelShader2->Release();
+	if (g_pPixelShader3) g_pPixelShader3->Release();
+	if (g_pPixelShader4) g_pPixelShader4->Release();
 
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
+
 	if (g_pRSState) g_pRSState->Release();
 	if (g_pDSState) g_pDSState->Release();
 
@@ -1362,62 +1372,6 @@ void CleanupDevice()
 
 	if (g_samplerTex2D)g_samplerTex2D->Release();
 }
-
-//{
-	// shader resourse는 T0
-	// texture는 shader resource로 만들거임 View도 만들거임
-	// reflection/refraction model 
-	// texture coordinate 계산법 : blinn/newell latitude mapping
-	// 위도는 x-z plane, 잘 헷갈리지 않게 사용해야 함
-	// R vector로 부터 u, v 계산
-	// 1. Load an image(stored for spherical texture map) : google에 environment texture image검색, 위 이미지는 distortion 되어 있음, 
-	// stb_image.h
-	// unsight char* img=stb1+load()
-	// unsighned char* img_rgba=new unsighed color;
-	// for (int y=0; y<h; y++){
-	// for (int x = 0; y < h; y++) {
-	//	img_rgba[4 * (w * y + x) + 0] = img[3 * (*w * y + x)_0];
-	//	img_rgba[4 * (w * y + x) +1] = img[3 * (*w * y + x)_1];
-	//	img_rgba[4 * (w * y + x) + 2] = img[3 * (*w * y + x)_2];
-	//	img_rgba[4 * (w * y + x) + 3] = unsighned char* 255; }
-	// STB_IMAGE_IMPLEMENTATION define 필요
-	// 2. Create the 2D texture resource that stores the loaded image
-	// D3D11_TEXTURE2D_DESC dcTex2D = {}; // structure임, 안에 들어간 값 모두 null
-	// ZeroMemory(&dcTex2F,sizeof(D3D11_TEXTURE2D_DESC)};
-	// memset(&dcTex2D,0,sizeof(D3D11_TEXTURE2D_DESC)); 둘 중 하나
-	// dcTex2D.Width=w;
-	// dcTex2D.height=h;
-	// dcTex2D.Format=DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM; 
-	// dcTex2D.ArraySize=1;
-	// dcTex2D.MipLeveLs=1;
-	// dcTex2D.SampLeDesc.Count=1; // super sampling을 하니? 하지만 우리는 쓰지 않음, 매 sample마다 1의 값을 저장 그대로 두면 될듯?
-	// dcTex2D.SampLeDesc.Quality=0;
-	// dcTex2D.usage=D3D11_USAGE_IMMUTABLE; // Dynamic은 constant에서 많이 씀
-	// constant buffer는 매 시간마다 계속 frame됨.
-	// dcTex2D.BindFLags=D3D11_BIND_SHADER_RESOURCE;
-	// dcTex2D.CPUAccessFlags=0;
-	// dcTex2DMiscFlags=0;
-	// 
-	// D3D11_SUBRESOURCE_DATA IniTex2D ={};
-	// IniTex2D.width=w*4;
-	// 
-	// ate.pSysMem
-	// 3. Create the View corresponding to the 2D texture
-	// D3D11_SHADER_RESOURCE
-	// 4. Locate a very large size sphere in the scene, mapping the texture onto the sphere surface
-	// 5. Compute the texture coordinates of the target models using the view's reflction vector
-	// 6. Sample the environment texture at the corresponding texture coordinate
-	// 7. Composite the lighting colors based ont the point light color and texture sample color : Reflection vector 방향이 light vector의 방향이 되고, 그 light의 color로 phong lighting 하여 더해줌
-	// material property도 이미 계산, 
-	// 
-	// "stp_imag2. 
-	// int w,h,;
-
-	// 
-
-
-	//}
-
 
 // 
 // 
