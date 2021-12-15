@@ -83,12 +83,12 @@ public:
 	// resources //
 	ID3D11Buffer* pVBuffer;
 	ID3D11Buffer* pIBuffer;
-	ID3D11ShaderResourceView* pSRViewNormal;
 	ID3D11InputLayout* pIALayer;
 	ID3D11VertexShader* pVShader;
 	ID3D11PixelShader* pPShader;
 	ID3D11RasterizerState* pRSState;
 	ID3D11DepthStencilState* pDSState;
+	ID3D11ShaderResourceView* pSRViewNormal;
 
 	UINT vb_stride;
 	UINT ib_stride;
@@ -1040,7 +1040,6 @@ HRESULT InitDevice()
 			vtx.Tex = Vector2(texcoord[2 * i + 0], texcoord[2 * i + 1]);
 		}
 
-		// 삼각형을 그릴 때는 intexbuffer를 사용
 		D3D11_SUBRESOURCE_DATA InitData = {};
 		InitData.pSysMem = &verticesSphere[0];
 		hr = g_pd3dDevice->CreateBuffer(&bd_sphere, &InitData, &g_pVertexBuffer_sphere);
@@ -1051,7 +1050,8 @@ HRESULT InitDevice()
 		GenerateIndicesSphere(sectorCount, stackCount, sphereIndices);
 
 		indices_sphere = sphereIndices.size();
-
+		
+		// 삼각형을 그릴 때는 indexbuffer를 사용
 		bd_sphere.Usage = D3D11_USAGE_DEFAULT;
 		bd_sphere.ByteWidth = sizeof(int) * (UINT)indices_sphere;        // 36 vertices needed for 12 triangles in a triangle list
 		bd_sphere.BindFlags = D3D11_BIND_INDEX_BUFFER;
@@ -1093,7 +1093,7 @@ HRESULT InitDevice()
 			img_rgba[4 * (w * y + x) + 1] = img[3 * (w * y + x) + 1];
 			img_rgba[4 * (w * y + x) + 2] = img[3 * (w * y + x) + 2];
 			img_rgba[4 * (w * y + x) + 3] = (unsigned char)255;
-		}
+		} 
 
 	D3D11_TEXTURE2D_DESC dcTex2D = {};
 	// ZeroMemory(&dcTex2D, sizeof(D3D11_TEXTURE2D_DESC)); // C-style
@@ -1135,8 +1135,6 @@ HRESULT InitDevice()
 #pragma endregion Env Mapping
 
 	// view를 scene단위에 넣을지, object 단위에 넣을지
-	// 환경 맵이라 
-
 #pragma region Transform Setting
 	g_pos_light = Vector3(0, 8, 0);
 
@@ -1156,7 +1154,7 @@ HRESULT InitDevice()
 	D3D11_RASTERIZER_DESC descRaster;
 	ZeroMemory(&descRaster, sizeof(D3D11_RASTERIZER_DESC));
 	descRaster.FillMode = D3D11_FILL_SOLID;
-	descRaster.CullMode = D3D11_CULL_NONE;
+	descRaster.CullMode = D3D11_CULL_NONE; // 주의
 	descRaster.FrontCounterClockwise = true;
 	descRaster.DepthBias = 0;
 	descRaster.DepthBiasClamp = 0;
@@ -1196,7 +1194,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	// object에 들어가는 정보 
+	// object
 	g_sceneObjs["STL"] = MyObject(g_pVertexBuffer_stl, g_pIndexBuffer_stl, g_pSRV_stl, g_pIALayoutP, g_pVertexShaderP, g_pPixelShader4,
 		g_pRSState, g_pDSState, sizeof(Vector3), sizeof(UINT), indices_stl,
 		Matrix::CreateScale(1.f / 12.f) * Matrix::CreateTranslation(-10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.7f, 0.7f), Color(0.2f, 0.2f, 0.2f), 10.f);
@@ -1205,7 +1203,7 @@ HRESULT InitDevice()
 		g_pRSState, g_pDSState, sizeof(CubeVertex), sizeof(WORD), indices_cube,
 		g_mWorld_cube, Color(0.1f, 0.1f, 0.1f), Color(0.7f, 0.7f, 0), Color(0.2f, 0, 0.2f), 10.f);
 
-	g_sceneObjs["CUBE2"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader4,
+	g_sceneObjs["CUBE2"] = MyObject(g_pVertexBuffer_cube, g_pIndexBuffer_cube, g_pSRV_cube, g_pIALayoutPCN, g_pVertexShaderPCN, g_pPixelShader1,
 	   g_pRSState, g_pDSState, sizeof(CubeVertex), sizeof(WORD), indices_cube,
 		Matrix::CreateScale(5.f) * Matrix::CreateTranslation(10.f, 0.f, 0.f), Color(0.1f, 0.1f, 0.1f), Color(0.f, 0.7f, 0.7f), Color(0.2f, 0, 0.2f), 10.f);
 
@@ -1244,6 +1242,7 @@ void Render()
 	cbLight.lightColor = Color(1, 1, 1, 1).RGBA();
 	cbLight.lightFlag = 0;
 
+	// 시험 출제
 	Matrix mView2World = g_mView.Invert();
 	MyObject& envSphere = g_sceneObjs["SPHERE_ENV"];
 	Matrix mView2EnvSphere = envSphere.mModel.Invert();

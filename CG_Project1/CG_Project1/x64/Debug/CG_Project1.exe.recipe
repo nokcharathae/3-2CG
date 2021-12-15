@@ -2,12 +2,12 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe</FullPath>
+      <FullPath>C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\x64\Debug\CG_Project1.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles>
     <ContentFile>
-      <FullPath>C:\Users\CEY\Desktop\git\3-2CG\CG_Project1\x64\Debug\Shaders_6_start.cso</FullPath>
+      <FullPath>C:\Users\CEY\Desktop\Git\3-2CG\CG_Project1\x64\Debug\Shaders_6_start.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />
