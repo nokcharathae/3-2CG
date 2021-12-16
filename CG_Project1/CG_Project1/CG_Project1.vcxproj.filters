@@ -56,7 +56,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="practice_6_start.cpp">
+    <ClCompile Include="practice3_2019204035_최은영.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\　\대학\3학년 2학기\컴퓨터그래픽스\HW2_2019204035_최은영\tutorial.cpp">
@@ -64,7 +64,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders_6_start.hlsl">
+    <FxCompile Include="practice3_2019204035_최은영.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
   </ItemGroup>
